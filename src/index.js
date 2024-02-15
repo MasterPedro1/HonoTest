@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { db } from '../utils/db';
+import { cors } from 'hono/cors';
 import { getInvoices } from './controllers/get-invoices';
 import { getContratos } from './controllers/get-contratos';
 import { getContrato } from './controllers/get-contrato';
@@ -9,6 +10,11 @@ import { postAsesor } from './controllers/post-asesor';
 
 const app = new Hono();
 
+app.use('/*',
+  cors({
+    origin: '*',
+  })
+)
 
 app.get('/api/titular/:curp', async (c) => {
   try {
