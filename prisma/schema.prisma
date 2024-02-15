@@ -1,0 +1,329 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+enum EstadoFactura {
+  PAGADA
+  VENCIDA
+  PARCIALMENTE_PAGADA
+  NA
+}
+
+enum userRole {
+  SUPERADMIN
+  ADMIN
+  SELLER
+}
+
+enum Payment_Method {
+  Stripe
+  MercadoPago
+  PayPal
+  Efectivo
+}
+
+model User {
+  id String @id @default(uuid())
+
+  external_id String? @unique
+
+  name         String?
+  lastName     String?
+  email        String?
+  profileImage String?
+
+  role userRole @default(SELLER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Piso {
+  id      String   @id @default(uuid())
+  nombre  String
+  modulos Modulo[] @relation("ModuloToIglesia")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@fulltext([nombre])
+}
+
+model Modulo {
+  id                String  @id @default(uuid())
+  piso              Piso    @relation("ModuloToIglesia", fields: [pisoId], references: [id], onDelete: Cascade)
+  pisoId            String
+  nombre            String
+  nichos            Nicho[] @relation("NichoToModulo")
+  filas_Numericas   String
+  filas_Alfabeticas String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pisoId])
+  @@fulltext([nombre])
+}
+
+model Nicho {
+  id String @id @default(uuid())
+
+  estadoId String?
+  estado   Estado? @relation("EstadoToNicho", fields: [estadoId], references: [id])
+
+  clase   Clase?  @relation("ClaseToNicho", fields: [claseId], references: [id])
+  claseId String?
+
+  setAside setAside? @relation("NichoToSetAside")
+
+  modulo   Modulo @relation("NichoToModulo", fields: [moduloId], references: [id], onDelete: Cascade)
+  moduloId String
+
+  fila_Numerica   Int
+  fila_Alfabetica String
+  status          Boolean @default(false)
+
+  available      Boolean @default(true)
+  setAsideByCurp String?
+  setAsideByName String?
+
+  contrato Contrato? @relation("NichoAContrato")
+
+  ocupantes Ocupantes[] @relation("NichoToOcupantes")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([estadoId])
+  @@index([claseId])
+  @@index([moduloId])
+}
+
+model Ocupantes {
+  id String @id @default(uuid())
+
+  fullName String
+
+  nichoId String
+  nicho   Nicho  @relation("NichoToOcupantes", fields: [nichoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nichoId])
+}
+
+model setAside {
+  id String @id @default(uuid())
+
+  name     String
+  lastName String
+  email    String @unique
+  curp     String @unique
+
+  invoice_external_id String
+  isPaid              Boolean @default(false)
+
+  nichoId String @unique
+  nicho   Nicho  @relation("NichoToSetAside", fields: [nichoId], references: [id], onUpdate: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nichoId])
+}
+
+model Clase {
+  id     String  @id @default(uuid())
+  nombre String
+  precio String
+  Nicho  Nicho[] @relation("ClaseToNicho")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Estado {
+  id       String     @id @default(uuid())
+  status   String
+  Nicho    Nicho[]    @relation("EstadoToNicho")
+  Contrato Contrato[] @relation("ContratoToEstado")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Persona {
+  id                   String     @id @default(uuid())
+  nombre               String?
+  apellido_Paterno     String?
+  apellido_Materno     String?
+  fecha_de_nacimiento  String?
+  edad                 String?
+  calle                String?
+  numero               String?
+  numero_interior      String?
+  codigo_Postal        String?
+  colonia              String?
+  delegacion_Municipio String?
+  estado               String?
+  ciudad               String?
+  correoElectronico    String?
+  curp                 String     @unique
+  rfc                  String?    @unique
+  telefono             String?
+  telefono_movil       String?
+  telefono_alternativo String?
+  contratos            Contrato[] @relation("ContratoToPersona")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@fulltext([curp])
+}
+
+model Invoice {
+  id String @id @default(uuid())
+
+  payment_method String?
+  external_id    String?
+  invoiceNumber  String?
+  issueDate      DateTime?
+  dueDate        DateTime?
+  paidDate       DateTime?
+  totalAmount    Float?
+  observation    String?   @db.Text
+  isPaid         Boolean   @default(false)
+
+  card_holder              String?
+  last4                    String?
+  brand                    String?
+  net_total_payment_amount Float?
+
+  line1                String?
+  delegacion_Municipio String?
+  colonia              String?
+  postal_code          String?
+  city                 String?
+  phone                String?
+
+  invoiceStatus EstadoFactura? @default(NA)
+
+  contratoId String
+  contrato   Contrato @relation("ContratoToInvoice", fields: [contratoId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([contratoId])
+}
+
+model Contrato {
+  id String @id @default(uuid())
+
+  nichoId String @unique
+  nicho   Nicho  @relation("NichoAContrato", fields: [nichoId], references: [id])
+
+  personaId String
+  persona   Persona @relation("ContratoToPersona", fields: [personaId], references: [id])
+
+  estadoId String
+  estado   Estado @relation("ContratoToEstado", fields: [estadoId], references: [id])
+
+  beneficiarios Beneficiario[] @relation("BeneficiarioAContrato")
+
+  invoices Invoice[] @relation("ContratoToInvoice")
+
+  paymentPeriod Int @default(1)
+
+  contrato        String
+  capturo         String
+  folio           String
+  fecha_Alta      String
+  fecha_de_compra String
+  vendedor        String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([personaId])
+  @@index([nichoId])
+  @@index([estadoId])
+  @@fulltext([folio])
+}
+
+model Beneficiario {
+  id String @id @default(uuid())
+
+  contratoId String
+  contrato   Contrato @relation("BeneficiarioAContrato", fields: [contratoId], references: [id], onDelete: Cascade)
+
+  nombre               String
+  apellido_Paterno     String
+  apellido_Materno     String
+  relacion_Familiar    String?
+  calle                String?
+  numero               String?
+  numero_interior      String?
+  codigo_Postal        String?
+  colonia              String?
+  delegacion_Municipio String?
+  estado               String?
+  ciudad               String?
+  correoElectronico    String?
+  curp                 String?
+  telefono             String?
+  telefono_movil       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([contratoId])
+}
+
+model PendingOrders {
+  id String @id @default(uuid())
+
+  name           String
+  lastName       String
+  contracted     String
+  amountPaid     Float
+  payment_method String?
+  external_id    String?
+  amountToBePaid Float?
+  totalAmount    Float?
+  isPaid         Boolean @default(false)
+
+  card_holder              String?
+  last4                    String?
+  brand                    String?
+  net_total_payment_amount Float?
+
+  line1                String?
+  delegacion_Municipio String?
+  colonia              String?
+  postal_code          String?
+  city                 String?
+  phone                String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Cita{
+
+  id String @id @default(uuid())
+
+  nombre  String
+  telefono  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt 
+}
