@@ -44,7 +44,7 @@ app.post('/api/asesorias/', async (c) => {
   }
 });
 
-const port = 4000;
+const port = process.env.PORT || 4000;
 console.log(`Server is running on port ${port}`);
 
 
