@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "dev": "tsx watch src/index.js"
+    "dev": "tsx watch src/index.js",
+    "start": "tsx watch src/index.js"
   },
   "dependencies": {
     "@hono/node-server": "^1.7.0",
